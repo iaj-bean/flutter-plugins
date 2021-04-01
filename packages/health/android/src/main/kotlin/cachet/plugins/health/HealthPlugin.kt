@@ -162,6 +162,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         val type = call.argument<String>("dataTypeKey")!!
         val startTime = call.argument<Long>("startDate")!!
         val endTime = call.argument<Long>("endDate")!!
+        val limit = call.argument<Int>("limit")!!
 
         // Look up data type and unit for the type key
         val dataType = keyToHealthDataType(type)
@@ -177,6 +178,11 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
                         .readData(DataReadRequest.Builder()
                                 .read(dataType)
                                 .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+                                .also { builder ->
+                                    when (limit != 0) {
+                                        true -> builder.setLimit(limit)
+                                    }
+                                }
                                 .build())
 
                 /// Fetch all data points for the specified DataType

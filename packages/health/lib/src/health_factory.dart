@@ -82,9 +82,24 @@ class HealthFactory {
     return removeDuplicates(dataPoints);
   }
 
+  /// Get an array of limit [HealthDataPoint] from an array of [HealthDataType]
+  /// limit = 1 means get the latest [HealthDataPoint] of [HealthDataType]
+  Future<List<HealthDataPoint>> getLimitHealthDataFromTypes(
+      DateTime endDate, List<HealthDataType> types, int limit, {DateTime startDate}) async {
+    startDate = startDate ?? DateTime(2000);
+    List<HealthDataPoint> dataPoints = [];
+
+    for (HealthDataType type in types) {
+      List<HealthDataPoint> result =
+      await _prepareQuery(startDate, endDate, type, limit: limit);
+      dataPoints.addAll(result);
+    }
+    return removeDuplicates(dataPoints);
+  }
+
   /// Prepares a query, i.e. checks if the types are available, etc.
   Future<List<HealthDataPoint>> _prepareQuery(
-      DateTime startDate, DateTime endDate, HealthDataType dataType) async {
+      DateTime startDate, DateTime endDate, HealthDataType dataType, {int limit=0}) async {
     /// Ask for device ID only once
     if (_deviceId == null) {
       _deviceId = _platformType == PlatformType.ANDROID
@@ -103,20 +118,21 @@ class HealthFactory {
         _platformType == PlatformType.ANDROID) {
       return _computeAndroidBMI(startDate, endDate);
     }
-    return await _dataQuery(startDate, endDate, dataType);
+    return await _dataQuery(startDate, endDate, dataType, limit);
   }
 
   /// The main function for fetching health data
   Future<List<HealthDataPoint>> _dataQuery(
-      DateTime startDate, DateTime endDate, HealthDataType dataType) async {
+      DateTime startDate, DateTime endDate, HealthDataType dataType, int limit) async {
     // Set parameters for method channel request
     Map<String, dynamic> args = {
       'dataTypeKey': _enumToString(dataType),
       'startDate': startDate.millisecondsSinceEpoch,
-      'endDate': endDate.millisecondsSinceEpoch
+      'endDate': endDate.millisecondsSinceEpoch,
+      'limit': limit
     };
 
-    List<HealthDataPoint> healthData = new List();
+    List<HealthDataPoint> healthData = [];
     HealthDataUnit unit = _dataTypeToUnit[dataType];
 
     try {
