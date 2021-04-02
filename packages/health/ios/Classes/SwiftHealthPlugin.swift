@@ -97,7 +97,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         let dataTypeKey = (arguments?["dataTypeKey"] as? String) ?? "DEFAULT"
         let startDate = (arguments?["startDate"] as? NSNumber) ?? 0
         let endDate = (arguments?["endDate"] as? NSNumber) ?? 0
-        let limit = (arguments?["limit"] as? NSNumber) ?? HKObjectQueryNoLimit
+        let limit = (arguments?["limit"] as? Int) ?? HKObjectQueryNoLimit
 
         // Convert dates from milliseconds to Date()
         let dateFrom = Date(timeIntervalSince1970: startDate.doubleValue / 1000)
@@ -105,7 +105,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
         let dataType = dataTypeLookUp(key: dataTypeKey)
         let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: true)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
 
         let query = HKSampleQuery(sampleType: dataType, predicate: predicate, limit: limit, sortDescriptors: [sortDescriptor]) {
             x, samplesOrNil, error in
