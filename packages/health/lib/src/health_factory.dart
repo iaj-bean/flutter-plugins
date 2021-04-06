@@ -78,13 +78,12 @@ class HealthFactory {
   /// Get an array of limit [HealthDataPoint] from an array of [HealthDataType]
   /// limit = 1 means get the latest [HealthDataPoint] of [HealthDataType]
   Future<List<HealthDataPoint>> getLimitHealthDataFromTypes(
-      DateTime endDate, List<HealthDataType> types, int limit, {DateTime startDate}) async {
-    startDate = startDate ?? DateTime(2000);
-    List<HealthDataPoint> dataPoints = [];
+      DateTime endDate, List<HealthDataType> types, int limit, {DateTime? startDate}) async {
+    final dataPoints = <HealthDataPoint>[];
 
-    for (HealthDataType type in types) {
-      List<HealthDataPoint> result =
-      await _prepareQuery(startDate, endDate, type, limit: limit);
+    startDate ??= DateTime(2000);
+    for (var type in types) {
+      final result = await _prepareQuery(startDate, endDate, type, limit: limit);
       dataPoints.addAll(result);
     }
     return removeDuplicates(dataPoints);
