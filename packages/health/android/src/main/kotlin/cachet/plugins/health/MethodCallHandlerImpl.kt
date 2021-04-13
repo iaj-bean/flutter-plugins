@@ -19,7 +19,7 @@ import kotlin.concurrent.thread
 
 class MethodCallHandlerImpl(private val activity: Activity?) : MethodCallHandler, Result, PluginRegistry.ActivityResultListener {
 
-  private var result: Result? = null
+  private lateinit var result: Result
 
   private var BODY_FAT_PERCENTAGE = "BODY_FAT_PERCENTAGE"
   private var HEIGHT = "HEIGHT"
@@ -36,6 +36,7 @@ class MethodCallHandlerImpl(private val activity: Activity?) : MethodCallHandler
   private var DISTANCE_DELTA = "DISTANCE_DELTA"
 
   override fun onMethodCall(call: MethodCall, result: Result) {
+    this.result = result
     when (call.method) {
       "requestAuthorization" -> requestAuthorization(call, result)
       "getData" -> getData(call, result)
@@ -125,26 +126,26 @@ class MethodCallHandlerImpl(private val activity: Activity?) : MethodCallHandler
     if (requestCode == GOOGLE_FIT_PERMISSIONS_REQUEST_CODE) {
       if (resultCode == Activity.RESULT_OK) {
         Log.d("FLUTTER_HEALTH", "Access Granted!")
-        result?.success(true)
+        result.success(true)
       } else if (resultCode == Activity.RESULT_CANCELED) {
         Log.d("FLUTTER_HEALTH", "Access Denied!")
-        result?.success(false);
+        result.success(false);
       }
     }
     return false
   }
 
   override fun success(p0: Any?) {
-    result?.success(p0)
+    result.success(p0)
   }
 
   override fun notImplemented() {
-    result?.notImplemented()
+    result.notImplemented()
   }
 
   override fun error(
           errorCode: String, errorMessage: String?, errorDetails: Any?) {
-    result?.error(errorCode, errorMessage, errorDetails)
+    result.error(errorCode, errorMessage, errorDetails)
   }
 
   /// DataTypes to register
