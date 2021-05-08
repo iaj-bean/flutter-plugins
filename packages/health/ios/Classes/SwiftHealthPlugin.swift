@@ -155,7 +155,6 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                 }
             }
             dispatchGroup.wait()
-            // TODO: sort stepResults
             result(stepResults.sorted {
                 (left, right) -> Bool in
                 return (left["date_from"] as! Int) < right["date_from"] as! Int
@@ -164,7 +163,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         } else {
             let dataType = dataTypeLookUp(key: dataTypeKey)
             let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
             let query = HKSampleQuery(sampleType: dataType, predicate: predicate, limit: limit, sortDescriptors: [sortDescriptor]) {
                 x, samplesOrNil, error in
 
@@ -175,8 +174,6 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                     }
                     print(samplesCategory)
                     result(samplesCategory.map { sample -> NSDictionary in
-                        let unit = self.unitLookUp(key: dataTypeKey)
-
                         return [
                             "uuid": "\(sample.uuid)",
                             "value": sample.value,
