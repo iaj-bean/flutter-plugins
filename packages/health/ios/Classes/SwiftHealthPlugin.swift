@@ -2,6 +2,17 @@ import Flutter
 import UIKit
 import HealthKit
 
+extension Date {
+    func resetToZero() -> Date {
+        return Calendar.current.date(bySettingHour: 0, minute: 0, second: 0, of: self) ?? Date()
+    }
+    func addTimeZone() -> Date {
+        let timeZone = TimeZone.current.secondsFromGMT()
+        let calendar = Calendar.current
+        return calendar.date(byAdding: .second, value: timeZone, to: self)!
+    }
+}
+
 public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
     let healthStore = HKHealthStore()
@@ -103,44 +114,106 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         let dateFrom = Date(timeIntervalSince1970: startDate.doubleValue / 1000)
         let dateTo = Date(timeIntervalSince1970: endDate.doubleValue / 1000)
 
-        let dataType = dataTypeLookUp(key: dataTypeKey)
-        let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+        if dataTypeKey == STEPS {
+            var stepResults: [[String:Any]] = []
+            let quantityType = HKObjectType.quantityType(forIdentifier: HKQuantityTypeIdentifier.stepCount)
+            var days = getDays(dateFrom, between: dateTo)
+            
+            
+            let dispatchGroup = DispatchGroup()
+            let dispatchQueue = DispatchQueue(label: "hk_request_queue")
+            for index in 0...(days.count - 1) {
+                dispatchGroup.enter()
+                dispatchQueue.async {
+                    if index == (days.count - 1) {
+                        if days[index] != dateTo {
+                            days.append(dateTo)
+                        } else {
+                            dispatchGroup.leave()
+                            return
+                        }
+                    }
+                    let predicate = HKQuery.predicateForSamples(withStart: days[index], end: days[index+1], options: .strictStartDate)
+                    let query = HKStatisticsQuery(quantityType: quantityType!, quantitySamplePredicate: predicate, options:HKStatisticsOptions.cumulativeSum) {
+                        x, statisticsOrNil, error in
+                        
+                        if statisticsOrNil == nil {
+                            dispatchGroup.leave()
+                            return
+                        }
+                        
+                        let unit = self.unitLookUp(key: dataTypeKey)
+                        stepResults.append([
+                            "value": statisticsOrNil!.sumQuantity()?.doubleValue(for:unit) ?? 0,
+                            "date_from":
+                                Int(statisticsOrNil!.startDate.timeIntervalSince1970 * 1000),
+                            "date_to": Int(statisticsOrNil!.endDate.timeIntervalSince1970 * 1000),
+                        ])
+                        dispatchGroup.leave()
+                    }
+                    HKHealthStore().execute(query)
+                }
+            }
+            dispatchGroup.wait()
+            // TODO: sort stepResults
+            result(stepResults.sorted {
+                (left, right) -> Bool in
+                return (left["date_from"] as! Int) < right["date_from"] as! Int
+            })
+            return
+        } else {
+            let dataType = dataTypeLookUp(key: dataTypeKey)
+            let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let query = HKSampleQuery(sampleType: dataType, predicate: predicate, limit: limit, sortDescriptors: [sortDescriptor]) {
+                x, samplesOrNil, error in
 
-        let query = HKSampleQuery(sampleType: dataType, predicate: predicate, limit: limit, sortDescriptors: [sortDescriptor]) {
-            x, samplesOrNil, error in
+                guard let samples = samplesOrNil as? [HKQuantitySample] else {
+                    guard let samplesCategory = samplesOrNil as? [HKCategorySample] else {
+                        result(FlutterError(code: "FlutterHealth", message: "Results are null", details: "\(error)"))
+                        return
+                    }
+                    print(samplesCategory)
+                    result(samplesCategory.map { sample -> NSDictionary in
+                        let unit = self.unitLookUp(key: dataTypeKey)
 
-            guard let samples = samplesOrNil as? [HKQuantitySample] else {
-                guard let samplesCategory = samplesOrNil as? [HKCategorySample] else {
-                    result(FlutterError(code: "FlutterHealth", message: "Results are null", details: "\(error)"))
+                        return [
+                            "uuid": "\(sample.uuid)",
+                            "value": sample.value,
+                            "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
+                            "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
+                        ]
+                    })
                     return
                 }
-                print(samplesCategory)
-                result(samplesCategory.map { sample -> NSDictionary in
+                result(samples.map { sample -> NSDictionary in
                     let unit = self.unitLookUp(key: dataTypeKey)
 
                     return [
                         "uuid": "\(sample.uuid)",
-                        "value": sample.value,
+                        "value": sample.quantity.doubleValue(for: unit),
                         "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                     ]
                 })
                 return
             }
-            result(samples.map { sample -> NSDictionary in
-                let unit = self.unitLookUp(key: dataTypeKey)
-
-                return [
-                    "uuid": "\(sample.uuid)",
-                    "value": sample.quantity.doubleValue(for: unit),
-                    "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
-                    "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
-                ]
-            })
-            return
+            HKHealthStore().execute(query)
         }
-        HKHealthStore().execute(query)
+    }
+    
+    func getDays(_ lDate: Date, between rDate: Date) -> [Date] {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: lDate.resetToZero().addTimeZone(), to: rDate.resetToZero().addTimeZone())
+        let days = components.day ?? 0
+        
+        var dates: [Date] = [lDate]
+        var index = 0
+        while index < days {
+            dates.append(calendar.date(byAdding: .day, value: 1, to: dates[index].resetToZero()) ?? Date())
+            index += 1
+        }
+        return dates
     }
 
     func unitLookUp(key: String) -> HKUnit {
