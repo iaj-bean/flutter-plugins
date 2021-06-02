@@ -15,6 +15,25 @@ class HealthFactory {
           ? _dataTypeKeysAndroid.contains(dataType)
           : _dataTypeKeysIOS.contains(dataType);
 
+  /// Request if has access to GoogleFit/Apple HealthKit
+  Future<bool> hasAuthorization(List<HealthDataType> types) async {
+    /// If BMI is requested, then also ask for weight and height
+    if (types.contains(HealthDataType.BODY_MASS_INDEX)) {
+      if (!types.contains(HealthDataType.WEIGHT)) {
+        types.add(HealthDataType.WEIGHT);
+      }
+
+      if (!types.contains(HealthDataType.HEIGHT)) {
+        types.add(HealthDataType.HEIGHT);
+      }
+    }
+
+    List<String> keys = types.map((e) => _enumToString(e)).toList();
+    final bool hasAuthorization =
+        await _channel.invokeMethod('hasAuthorization', {'types': keys});
+    return hasAuthorization;
+  }
+
   /// Request access to GoogleFit/Apple HealthKit
   Future<bool> requestAuthorization(List<HealthDataType> types) async {
     /// If BMI is requested, then also ask for weight and height
@@ -78,12 +97,14 @@ class HealthFactory {
   /// Get an array of limit [HealthDataPoint] from an array of [HealthDataType]
   /// limit = 1 means get the latest [HealthDataPoint] of [HealthDataType]
   Future<List<HealthDataPoint>> getLimitHealthDataFromTypes(
-      DateTime endDate, List<HealthDataType> types, int limit, {DateTime? startDate}) async {
+      DateTime endDate, List<HealthDataType> types, int limit,
+      {DateTime? startDate}) async {
     final dataPoints = <HealthDataPoint>[];
 
     startDate ??= DateTime(2000);
     for (var type in types) {
-      final result = await _prepareQuery(startDate, endDate, type, limit: limit);
+      final result =
+          await _prepareQuery(startDate, endDate, type, limit: limit);
       dataPoints.addAll(result);
     }
     return removeDuplicates(dataPoints);
@@ -91,7 +112,8 @@ class HealthFactory {
 
   /// Prepares a query, i.e. checks if the types are available, etc.
   Future<List<HealthDataPoint>> _prepareQuery(
-      DateTime startDate, DateTime endDate, HealthDataType dataType, {int limit=0}) async {
+      DateTime startDate, DateTime endDate, HealthDataType dataType,
+      {int limit = 0}) async {
     /// Ask for device ID only once
     _deviceId ??= _platformType == PlatformType.ANDROID
         ? (await _deviceInfo.androidInfo).androidId
@@ -112,8 +134,8 @@ class HealthFactory {
   }
 
   /// The main function for fetching health data
-  Future<List<HealthDataPoint>> _dataQuery(
-      DateTime startDate, DateTime endDate, HealthDataType dataType, int limit) async {
+  Future<List<HealthDataPoint>> _dataQuery(DateTime startDate, DateTime endDate,
+      HealthDataType dataType, int limit) async {
     // Set parameters for method channel request
     final args = <String, dynamic>{
       'dataTypeKey': _enumToString(dataType),

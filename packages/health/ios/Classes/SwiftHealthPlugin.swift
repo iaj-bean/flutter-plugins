@@ -67,6 +67,11 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         if (call.method.elementsEqual("checkIfHealthDataAvailable")){
             checkIfHealthDataAvailable(call: call, result: result)
         }
+
+        else if (call.method.elementsEqual("hasAuthorization")) {
+            hasAuthorization(call: call, result: result)
+        }
+
         /// Handle requestAuthorization
         else if (call.method.elementsEqual("requestAuthorization")){
             requestAuthorization(call: call, result: result)
@@ -80,6 +85,33 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
     func checkIfHealthDataAvailable(call: FlutterMethodCall, result: @escaping FlutterResult) {
         result(HKHealthStore.isHealthDataAvailable())
+    }
+
+    func hasAuthorization(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        let arguments = call.arguments as? NSDictionary
+        let types = (arguments?["types"] as? Array) ?? []
+
+        var typesToRequest = Set<HKSampleType>()
+
+        for key in types {
+            let keyString = "\(key)"
+            typesToRequest.insert(dataTypeLookUp(key: keyString))
+        }
+
+        if #available(iOS 12.0, *) {
+            healthStore.getRequestStatusForAuthorization(toShare: [], read: typesToRequest) { (status, error) in
+                if(status == HKAuthorizationRequestStatus.unnecessary) {
+                    result(true)
+                }
+                else {
+                    result(false)
+                }
+                
+            }
+        }
+        else {
+            result(true)// Handle the error here.
+        }
     }
 
     func requestAuthorization(call: FlutterMethodCall, result: @escaping FlutterResult) {

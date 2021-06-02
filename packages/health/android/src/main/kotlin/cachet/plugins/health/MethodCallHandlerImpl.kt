@@ -38,6 +38,7 @@ class MethodCallHandlerImpl(private val activity: Activity?) : MethodCallHandler
   override fun onMethodCall(call: MethodCall, result: Result) {
     this.result = result
     when (call.method) {
+      "hasAuthorization" -> hasAuthorization(call, result)
       "requestAuthorization" -> requestAuthorization(call, result)
       "getData" -> getData(call, result)
       else -> result.notImplemented()
@@ -120,6 +121,18 @@ class MethodCallHandlerImpl(private val activity: Activity?) : MethodCallHandler
     else {
       result.success(true)
     }
+  }
+
+  /// Called when the "hasAuthorization" is invoked from Flutter
+  private fun hasAuthorization(call: MethodCall, result: Result) {
+    if (activity == null) {
+      result.success(false)
+      return
+    }
+
+    val isGranted = GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(activity), fitnessOptions)
+
+    result.success(isGranted)
   }
 
   override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {

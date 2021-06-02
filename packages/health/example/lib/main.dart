@@ -46,7 +46,10 @@ class _MyAppState extends State<MyApp> {
     setState(() => _state = AppState.FETCHING_DATA);
 
     /// You MUST request access to the data types before reading them
-    bool accessWasGranted = await health.requestAuthorization(types);
+    bool accessWasGranted = await health.hasAuthorization(types);
+    if (accessWasGranted == false) {
+      accessWasGranted = await health.requestAuthorization(types);
+    }
 
     int steps = 0;
 
