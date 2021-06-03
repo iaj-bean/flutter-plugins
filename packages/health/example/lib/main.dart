@@ -29,8 +29,8 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> fetchData() async {
     /// Get everything from midnight until now
-    DateTime startDate = DateTime(2020, 11, 07, 0, 0, 0);
-    DateTime endDate = DateTime(2025, 11, 07, 23, 59, 59);
+    DateTime startDate = DateTime.now();
+    DateTime endDate = startDate.add(Duration(days: -30));
 
     HealthFactory health = HealthFactory();
 
@@ -40,16 +40,13 @@ class _MyAppState extends State<MyApp> {
       HealthDataType.WEIGHT,
       HealthDataType.HEIGHT,
       HealthDataType.BLOOD_GLUCOSE,
-      HealthDataType.DISTANCE_WALKING_RUNNING,
     ];
 
     setState(() => _state = AppState.FETCHING_DATA);
 
     /// You MUST request access to the data types before reading them
-    bool accessWasGranted = await health.hasAuthorization(types);
-    if (accessWasGranted == false) {
-      accessWasGranted = await health.requestAuthorization(types);
-    }
+    /// You CAN check if has been authorized use [hasAuthorization]
+    bool accessWasGranted = await health.requestAuthorization(types);
 
     int steps = 0;
 

@@ -107,7 +107,7 @@ class MethodCallHandlerImpl(private val activity: Activity?) : MethodCallHandler
 
     val optionsToRegister = callToHealthTypes(call)
 
-    val isGranted = GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(activity), fitnessOptions)
+    val isGranted = GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(activity), optionsToRegister)
 
     /// Not granted? Ask for permission
     if (!isGranted) {
@@ -130,7 +130,9 @@ class MethodCallHandlerImpl(private val activity: Activity?) : MethodCallHandler
       return
     }
 
-    val isGranted = GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(activity), fitnessOptions)
+    val optionsToRegister = callToHealthTypes(call)
+
+    val isGranted = GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(activity), optionsToRegister)
 
     result.success(isGranted)
   }
@@ -160,22 +162,6 @@ class MethodCallHandlerImpl(private val activity: Activity?) : MethodCallHandler
           errorCode: String, errorMessage: String?, errorDetails: Any?) {
     result.error(errorCode, errorMessage, errorDetails)
   }
-
-  /// DataTypes to register
-  private val fitnessOptions = FitnessOptions.builder()
-          .addDataType(keyToHealthDataType(BODY_FAT_PERCENTAGE), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(HEIGHT), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(WEIGHT), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(STEPS), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(ACTIVE_ENERGY_BURNED), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(HEART_RATE), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(BODY_TEMPERATURE), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(BLOOD_PRESSURE_SYSTOLIC), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(BLOOD_OXYGEN), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(BLOOD_GLUCOSE), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(MOVE_MINUTES), FitnessOptions.ACCESS_READ)
-          .addDataType(keyToHealthDataType(DISTANCE_DELTA), FitnessOptions.ACCESS_READ)
-          .build()
 
   private fun keyToHealthDataType(type: String): DataType {
     return when (type) {
