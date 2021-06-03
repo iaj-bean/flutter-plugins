@@ -10,7 +10,7 @@ class HealthDataPoint {
   PlatformType _platform;
   String _deviceId;
 
-  HealthDataPoint._(this._value, this._type, this._unit, this._dateFrom,
+  HealthDataPoint(this._value, this._type, this._unit, this._dateFrom,
       this._dateTo, this._platform, this._deviceId) {
     /// Set the value to minutes rather than the category
     /// returned by the native API
@@ -50,22 +50,28 @@ class HealthDataPoint {
 
   /// Get the quantity value of the data point
   num get value => _value;
+  set value(value) => _value = value;
 
   /// Get the start of the datetime interval
   DateTime get dateFrom => _dateFrom;
+  set dateFrom(value) => _dateFrom = value;
 
   /// Get the end of the datetime interval
   DateTime get dateTo => _dateTo;
+  set dateTo(value) => _dateTo = value;
 
   /// Get the type of the data point
   HealthDataType get type => _type;
+  set type(value) => _type = value;
 
   /// Get the unit of the data point
   HealthDataUnit get unit => _unit;
+  set unit(value) => _unit = value;
 
   /// Get the software platform of the data point
   /// (i.e. Android or iOS)
   PlatformType get platform => _platform;
+  set platform(value) => _platform = value;
 
   /// Get the data point type as a string
   String get typeString => _enumToString(_type);
@@ -76,6 +82,7 @@ class HealthDataPoint {
   /// Get the id of the device from which
   /// the data point was extracted
   String get deviceId => _deviceId;
+  set deviceId(value) => _deviceId = value;
 
   /// An equals (==) operator for comparing two data points
   /// This makes it possible to remove duplicate data points.
