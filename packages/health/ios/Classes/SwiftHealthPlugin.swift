@@ -129,7 +129,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             healthStore.requestAuthorization(toShare: nil, read: typesToRequest) { (success, error) in
                 result(success)
             }
-        } 
+        }
         else {
             result(false)// Handle the error here.
         }
@@ -150,8 +150,8 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             var stepResults: [[String:Any]] = []
             let quantityType = HKObjectType.quantityType(forIdentifier: HKQuantityTypeIdentifier.stepCount)
             var days = getDays(dateFrom, between: dateTo)
-            
-            
+
+
             let dispatchGroup = DispatchGroup()
             let dispatchQueue = DispatchQueue(label: "hk_request_queue")
             for index in 0...(days.count - 1) {
@@ -165,21 +165,33 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                             return
                         }
                     }
-                    let predicate = HKQuery.predicateForSamples(withStart: days[index], end: days[index+1], options: .strictStartDate)
-                    let query = HKStatisticsQuery(quantityType: quantityType!, quantitySamplePredicate: predicate, options:HKStatisticsOptions.cumulativeSum) {
+                    let predicate = HKQuery.predicateForSamples(
+                        withStart: days[index],
+                        end: days[index+1],
+                        options: .strictStartDate
+                    )
+                    let query = HKStatisticsQuery(
+                        quantityType: quantityType!,
+                        quantitySamplePredicate: predicate,
+                        options:[.cumulativeSum]
+                    ) {
                         x, statisticsOrNil, error in
-                        
-                        if statisticsOrNil == nil {
+
+                        guard error == nil, let statistics = statisticsOrNil else {
                             dispatchGroup.leave()
                             return
                         }
-                        
+
                         let unit = self.unitLookUp(key: dataTypeKey)
+                        guard let count = statistics.sumQuantity()?.doubleValue(for:unit) else {
+                            dispatchGroup.leave()
+                            return
+                        }
+
                         stepResults.append([
-                            "value": statisticsOrNil!.sumQuantity()?.doubleValue(for:unit) ?? 0,
-                            "date_from":
-                                Int(statisticsOrNil!.startDate.timeIntervalSince1970 * 1000),
-                            "date_to": Int(statisticsOrNil!.endDate.timeIntervalSince1970 * 1000),
+                            "value": count,
+                            "date_from": Int(statistics.startDate.timeIntervalSince1970 * 1000),
+                            "date_to": Int(statistics.endDate.timeIntervalSince1970 * 1000),
                         ])
                         dispatchGroup.leave()
                     }
@@ -230,12 +242,12 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             HKHealthStore().execute(query)
         }
     }
-    
+
     func getDays(_ lDate: Date, between rDate: Date) -> [Date] {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.day], from: lDate.resetToZero().addTimeZone(), to: rDate.resetToZero().addTimeZone())
         let days = components.day ?? 0
-        
+
         var dates: [Date] = [lDate]
         var index = 0
         while index < days {
@@ -287,7 +299,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         unitDict[SLEEP_AWAKE] = HKUnit.init(from: "")
 
         // Set up iOS 11 specific types (ordinary health data types)
-        if #available(iOS 11.0, *) { 
+        if #available(iOS 11.0, *) {
             dataTypesDict[ACTIVE_ENERGY_BURNED] = HKSampleType.quantityType(forIdentifier: .activeEnergyBurned)!
             dataTypesDict[BASAL_ENERGY_BURNED] = HKSampleType.quantityType(forIdentifier: .basalEnergyBurned)!
             dataTypesDict[BLOOD_GLUCOSE] = HKSampleType.quantityType(forIdentifier: .bloodGlucose)!
