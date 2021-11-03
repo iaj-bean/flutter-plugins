@@ -6,7 +6,6 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.PluginRegistry.Registrar
 
 const val GOOGLE_FIT_PERMISSIONS_REQUEST_CODE = 1111
 const val CHANNEL_NAME = "flutter_health"
@@ -14,13 +13,6 @@ const val CHANNEL_NAME = "flutter_health"
 class HealthPlugin : ActivityAware, FlutterPlugin {
     private var channel: MethodChannel? = null
     private var activity: Activity? = null
-
-    // v1 Android embedding, useless
-    private fun registerWith(registrar: Registrar) {
-        channel = MethodChannel(registrar.messenger(), CHANNEL_NAME)
-        activity = registrar.activity()
-        setupMethodChannel()
-    }
 
     // v2 Android embedding
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {

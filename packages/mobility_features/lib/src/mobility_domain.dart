@@ -36,11 +36,11 @@ class Distance {
         [b.geoLocation.latitude, b.geoLocation.longitude]);
   }
 
-  static double fromList(List<double> p1, List<double> p2) {
-    double lat1 = p1[0].radiansFromDegrees;
-    double lon1 = p1[1].radiansFromDegrees;
-    double lat2 = p2[0].radiansFromDegrees;
-    double lon2 = p2[1].radiansFromDegrees;
+  static double fromList(List<double?> p1, List<double?> p2) {
+    double lat1 = p1[0]!.radiansFromDegrees;
+    double lon1 = p1[1]!.radiansFromDegrees;
+    double lat2 = p2[0]!.radiansFromDegrees;
+    double lon2 = p2[1]!.radiansFromDegrees;
     double earthRadius = 6378137.0; // WGS84 major axis
     double distance = 2 *
         earthRadius *
@@ -54,15 +54,15 @@ class Distance {
 /// A [GeoLocation] object contains a latitude and longitude
 /// and represents a 2D spatial coordinates
 class GeoLocation implements _Serializable, _Geospatial {
-  double _latitude;
-  double _longitude;
+  late double _latitude;
+  late double _longitude;
 
   GeoLocation(this._latitude, this._longitude);
 
   factory GeoLocation.fromJson(Map<String, dynamic> x) {
-    num lat = x[_LATITUDE] as double;
-    num lon = x[_LONGITUDE] as double;
-    return GeoLocation(lat, lon);
+    num? lat = x[_LATITUDE] as double?;
+    num? lon = x[_LONGITUDE] as double?;
+    return GeoLocation(lat as double, lon as double);
   }
 
   double get latitude => _latitude;
@@ -74,9 +74,7 @@ class GeoLocation implements _Serializable, _Geospatial {
   Map<String, dynamic> toJson() => {_LATITUDE: latitude, _LONGITUDE: longitude};
 
   @override
-  String toString() {
-    return '($_latitude, $_longitude)';
-  }
+  String toString() => '($_latitude, $_longitude)';
 }
 
 /// A [LocationSample] holds a 2D [GeoLocation] spatial data point
@@ -87,9 +85,9 @@ class LocationSample implements _Serializable, _Geospatial, _Timestamped {
 
   LocationSample(this._geoLocation, this._datetime);
 
-  double get latitude => geoLocation.latitude;
+  double? get latitude => geoLocation.latitude;
 
-  double get longitude => geoLocation.longitude;
+  double? get longitude => geoLocation.longitude;
 
   DateTime get datetime => _datetime;
 
@@ -127,7 +125,7 @@ class LocationSample implements _Serializable, _Geospatial, _Timestamped {
 /// and only after all places have been identified will a [Place] be assigned.
 class Stop implements _Serializable, _Geospatial, _Timestamped {
   GeoLocation _geoLocation;
-  int placeId;
+  int? placeId;
   DateTime _arrival, _departure;
 
   Stop._(this._geoLocation, this._arrival, this._departure,
@@ -135,8 +133,8 @@ class Stop implements _Serializable, _Geospatial, _Timestamped {
 
   /// Construct stop from point cloud
   factory Stop._fromLocationSamples(List<LocationSample> locationSamples,
-      {int placeId = -1, filler = false}) {
-    /// Calculate center
+      {int placeId = -1}) {
+    // Calculate center
     GeoLocation center = _computeCentroid(locationSamples);
     return Stop._(
         center, locationSamples.first.datetime, locationSamples.last.datetime,
@@ -152,34 +150,31 @@ class Stop implements _Serializable, _Geospatial, _Timestamped {
   DateTime get datetime => _arrival;
 
   List<double> get hourSlots {
-    /// Start and end should be on the same date!
     int startHour = arrival.hour;
     int endHour = departure.hour;
 
-    if (departure.midnight != arrival.midnight) {
-      throw Exception(
-          'Arrival and Departure should be on the same date, but was not! $this');
-    }
-
     List<double> hours = List<double>.filled(HOURS_IN_A_DAY, 0.0);
 
-    /// If arrived and departed within same hour
-    if (startHour == endHour) {
-      hours[startHour] = (departure.minute - arrival.minute) / 60.0;
-    }
-
-    /// Otherwise if the stop has overlap in hours
-    else {
-      /// Start
-      hours[startHour] = 1.0 - arrival.minute / 60.0;
-
-      /// In between
-      for (int hour = startHour + 1; hour < endHour; hour++) {
-        hours[hour] = 1.0;
+    // Start and end should be on the same date!
+    if (departure.midnight == arrival.midnight) {
+      // If arrived and departed within same hour
+      if (startHour == endHour) {
+        hours[startHour] = (departure.minute - arrival.minute) / 60.0;
       }
 
-      /// Departure
-      hours[endHour] = departure.minute / 60.0;
+      // Otherwise if the stop has overlap in hours
+      else {
+        // Start
+        hours[startHour] = 1.0 - arrival.minute / 60.0;
+
+        // In between
+        for (int hour = startHour + 1; hour < endHour; hour++) {
+          hours[hour] = 1.0;
+        }
+
+        // Departure
+        hours[endHour] = departure.minute / 60.0;
+      }
     }
     return hours;
   }
@@ -214,19 +209,19 @@ class Stop implements _Serializable, _Geospatial, _Timestamped {
 class Place {
   int _id;
   List<Stop> _stops;
-  GeoLocation _geoLocation;
+  GeoLocation? _geoLocation;
 
   Place._(this._id, this._stops);
 
   Duration get duration =>
       _stops.map((s) => s.duration).reduce((a, b) => a + b);
 
-  Duration durationForDate(DateTime d) => _stops
+  Duration durationForDate(DateTime? d) => _stops
       .where((s) => s.arrival.midnight == d)
       .map((s) => s.duration)
       .fold(Duration(), (a, b) => a + b);
 
-  GeoLocation get geoLocation {
+  GeoLocation? get geoLocation {
     if (_geoLocation == null) {
       _geoLocation = _computeCentroid(_stops);
     }
@@ -246,7 +241,7 @@ class Place {
 /// the stops, the duration of the move, and thereby also the average travel speed.
 class Move implements _Serializable, _Timestamped {
   Stop _stopFrom, _stopTo;
-  double _distance;
+  double? _distance;
 
   Move._(this._stopFrom, this._stopTo, this._distance);
 
@@ -260,7 +255,8 @@ class Move implements _Serializable, _Timestamped {
   }
 
   /// Create a Move with a straight line between two stops
-  factory Move._fromStops(Stop a, Stop b, {double distance}) {
+  // ignore: unused_element
+  factory Move._fromStops(Stop a, Stop b, {double? distance}) {
     /// Distance can be overridden. If it was not then it should be computed
     if (distance == null) {
       distance = Distance.fromGeospatial(a, b);
@@ -269,7 +265,7 @@ class Move implements _Serializable, _Timestamped {
   }
 
   /// The haversine distance through all the samples between the two stops
-  double get distance => _distance;
+  double? get distance => _distance;
 
   /// The duration of the move in milliseconds
   Duration get duration => Duration(
@@ -277,11 +273,11 @@ class Move implements _Serializable, _Timestamped {
           _stopFrom.departure.millisecondsSinceEpoch);
 
   /// The average speed when moving between the two places (m/s)
-  double get meanSpeed => distance / duration.inSeconds.toDouble();
+  double get meanSpeed => distance! / duration.inSeconds.toDouble();
 
-  int get placeFrom => _stopFrom.placeId;
+  int? get placeFrom => _stopFrom.placeId;
 
-  int get placeTo => _stopTo.placeId;
+  int? get placeTo => _stopTo.placeId;
 
   Stop get stopFrom => _stopFrom;
 
@@ -302,20 +298,20 @@ class Move implements _Serializable, _Timestamped {
 
   @override
   String toString() {
-    return 'Move (Place ${_stopFrom.placeId} [${_stopFrom.datetime}] -> Place ${_stopTo.placeId} [${_stopTo.datetime}]) ($duration) (${distance.toInt()} meters)';
+    return 'Move (Place ${_stopFrom.placeId} [${_stopFrom.datetime}] -> Place ${_stopTo.placeId} [${_stopTo.datetime}]) ($duration) (${distance!.toInt()} meters)';
   }
 }
 
 class _HourMatrix {
   List<List<double>> _matrix;
-  int _numberOfPlaces;
+  late int _numberOfPlaces;
 
   _HourMatrix(this._matrix) {
     _numberOfPlaces = _matrix.first.length;
   }
 
   factory _HourMatrix.fromStops(List<Stop> stops, int numPlaces) {
-    /// Init 2d matrix with 24 rows and cols equal to number of places
+    // Init 2d matrix with 24 rows and cols equal to number of places
     List<List<double>> matrix = new List.generate(
         HOURS_IN_A_DAY, (_) => new List<double>.filled(numPlaces, 0.0));
 
@@ -323,7 +319,7 @@ class _HourMatrix {
       List<Stop> stopsAtPlace = stops.where((s) => (s.placeId) == j).toList();
 
       for (Stop s in stopsAtPlace) {
-        /// For each hour of the day, add the hours from the StopRow to the matrix
+        // For each hour of the day, add the hours from the StopRow to the matrix
         for (int i = 0; i < HOURS_IN_A_DAY; i++) {
           matrix[i][j] += s.hourSlots[i];
         }
@@ -332,6 +328,7 @@ class _HourMatrix {
     return _HourMatrix(matrix);
   }
 
+  // ignore: unused_element
   factory _HourMatrix.routineMatrix(List<_HourMatrix> matrices) {
     int nDays = matrices.length;
     int nPlaces = matrices.first.matrix.first.length;

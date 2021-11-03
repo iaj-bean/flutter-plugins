@@ -1,4 +1,4 @@
-part of '../health.dart';
+part of health;
 
 /// Main class for the Plugin
 class HealthFactory {
@@ -10,7 +10,7 @@ class HealthFactory {
       Platform.isAndroid ? PlatformType.ANDROID : PlatformType.IOS;
 
   /// Check if a given data type is available on the platform
-  bool _isDataTypeAvailable(HealthDataType dataType) =>
+  bool isDataTypeAvailable(HealthDataType dataType) =>
       _platformType == PlatformType.ANDROID
           ? _dataTypeKeysAndroid.contains(dataType)
           : _dataTypeKeysIOS.contains(dataType);
@@ -75,14 +75,14 @@ class HealthFactory {
     for (var i = 0; i < weights.length; i++) {
       final bmiValue = weights[i].value.toDouble() / (h * h);
       final x = HealthDataPoint(bmiValue, dataType, unit, weights[i].dateFrom,
-          weights[i].dateTo, _platformType, _deviceId!);
+          weights[i].dateTo, _platformType, _deviceId!, '', '');
 
       bmiHealthPoints.add(x);
     }
     return bmiHealthPoints;
   }
 
-  /// Get an array of [HealthDataPoint] from an array of [HealthDataType]
+  /// Get an list of [HealthDataPoint] from an list of [HealthDataType].
   Future<List<HealthDataPoint>> getHealthDataFromTypes(
       DateTime startDate, DateTime endDate, List<HealthDataType> types) async {
     final dataPoints = <HealthDataPoint>[];
@@ -114,18 +114,18 @@ class HealthFactory {
   Future<List<HealthDataPoint>> _prepareQuery(
       DateTime startDate, DateTime endDate, HealthDataType dataType,
       {int limit = 0}) async {
-    /// Ask for device ID only once
+    // Ask for device ID only once
     _deviceId ??= _platformType == PlatformType.ANDROID
         ? (await _deviceInfo.androidInfo).androidId
         : (await _deviceInfo.iosInfo).identifierForVendor;
 
-    /// If not implemented on platform, throw an exception
-    if (!_isDataTypeAvailable(dataType)) {
+    // If not implemented on platform, throw an exception
+    if (!isDataTypeAvailable(dataType)) {
       throw _HealthException(
           dataType, 'Not available on platform $_platformType');
     }
 
-    /// If BodyMassIndex is requested on Android, calculate this manually in Dart
+    // If BodyMassIndex is requested on Android, calculate this manually
     if (dataType == HealthDataType.BODY_MASS_INDEX &&
         _platformType == PlatformType.ANDROID) {
       return _computeAndroidBMI(startDate, endDate);
@@ -149,11 +149,23 @@ class HealthFactory {
     final fetchedDataPoints = await _channel.invokeMethod('getData', args);
     if (fetchedDataPoints != null) {
       return fetchedDataPoints.map<HealthDataPoint>((e) {
-        num value = e['value'];
-        DateTime from = DateTime.fromMillisecondsSinceEpoch(e['date_from']);
-        DateTime to = DateTime.fromMillisecondsSinceEpoch(e['date_to']);
+        final num value = e['value'];
+        final DateTime from =
+            DateTime.fromMillisecondsSinceEpoch(e['date_from']);
+        final DateTime to = DateTime.fromMillisecondsSinceEpoch(e['date_to']);
+        final String sourceId = e["source_id"];
+        final String sourceName = e["source_name"];
         return HealthDataPoint(
-            value, dataType, unit, from, to, _platformType, _deviceId!);
+          value,
+          dataType,
+          unit,
+          from,
+          to,
+          _platformType,
+          _deviceId!,
+          sourceId,
+          sourceName,
+        );
       }).toList();
     } else {
       return <HealthDataPoint>[];

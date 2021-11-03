@@ -3,7 +3,7 @@ library mobility_app;
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-import 'package:mubs_background_location/mubs_background_location.dart';
+import 'package:carp_background_location/carp_background_location.dart';
 import 'package:mobility_features/mobility_features.dart';
 
 part 'stops_page.dart';
@@ -89,15 +89,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// Mobility Features stream
   StreamSubscription<MobilityContext> mobilitySubscription;
-  MobilityFactory mobilityFactory = MobilityFactory.instance;
   MobilityContext _mobilityContext;
 
   @override
   void initState() {
+    super.initState();
+
     /// Set up Mobility Features
-    mobilityFactory.stopDuration = Duration(seconds: 20);
-    mobilityFactory.placeRadius = 50.0;
-    mobilityFactory.stopRadius = 5.0;
+    MobilityFeatures().stopDuration = Duration(seconds: 20);
+    MobilityFeatures().placeRadius = 50.0;
+    MobilityFeatures().stopRadius = 5.0;
 
     /// Setup Location Manager
     locationManager.distanceFilter = 0;
@@ -105,6 +106,12 @@ class _MyHomePageState extends State<MyHomePage> {
     locationManager.notificationTitle = 'Mobility Features';
     locationManager.notificationMsg = 'Your geo-location is being tracked';
     streamInit();
+  }
+
+  @override
+  void dispose() {
+    mobilitySubscription?.cancel();
+    super.dispose();
   }
 
   void onMobilityContext(MobilityContext context) {
@@ -132,9 +139,9 @@ class _MyHomePageState extends State<MyHomePage> {
     Stream<LocationSample> locationSampleStream = dtoStream.map((e) =>
         LocationSample(GeoLocation(e.latitude, e.longitude), DateTime.now()));
 
-    mobilityFactory.startListening(locationSampleStream);
+    MobilityFeatures().startListening(locationSampleStream);
     mobilitySubscription =
-        mobilityFactory.contextStream.listen(onMobilityContext);
+        MobilityFeatures().contextStream.listen(onMobilityContext);
   }
 
   void onData(LocationDto dto) {
@@ -220,19 +227,10 @@ class _MyHomePageState extends State<MyHomePage> {
       currentIndex: _currentIndex, // this will be set when a new tab is tapped
       type: BottomNavigationBarType.fixed,
       items: [
-        BottomNavigationBarItem(
-          icon: featuresIcon,
-          title: new Text('Features'),
-        ),
-        BottomNavigationBarItem(
-          icon: stopIcon,
-          title: new Text('Stops'),
-        ),
-        BottomNavigationBarItem(
-          icon: placeIcon,
-          title: new Text('Places'),
-        ),
-        BottomNavigationBarItem(icon: moveIcon, title: Text('Moves'))
+        BottomNavigationBarItem(icon: featuresIcon, label: 'Features'),
+        BottomNavigationBarItem(icon: stopIcon, label: 'Stops'),
+        BottomNavigationBarItem(icon: placeIcon, label: 'Places'),
+        BottomNavigationBarItem(icon: moveIcon, label: 'Moves')
       ],
     );
   }

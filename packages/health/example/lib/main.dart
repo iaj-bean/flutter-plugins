@@ -28,53 +28,56 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> fetchData() async {
-    /// Get everything from midnight until now
+    /// Fetch data from the health plugin and print it
     DateTime endDate = DateTime.now();
     DateTime startDate = endDate.add(Duration(days: -30));
 
     HealthFactory health = HealthFactory();
 
-    /// Define the types to get.
+    // define the types to get
     List<HealthDataType> types = [
       HealthDataType.STEPS,
       HealthDataType.WEIGHT,
       HealthDataType.HEIGHT,
       HealthDataType.BLOOD_GLUCOSE,
       HealthDataType.HEART_RATE,
+      HealthDataType.SLEEP_ASLEEP,
     ];
 
     setState(() => _state = AppState.FETCHING_DATA);
 
-    /// You MUST request access to the data types before reading them
-    /// You CAN check if has been authorized use [hasAuthorization]
+    // you MUST request access to the data types before reading them
+    // you CAN check if has been authorized use [hasAuthorization]
     bool accessWasGranted = await health.requestAuthorization(types);
 
     int steps = 0;
 
     if (accessWasGranted) {
       try {
-        /// Fetch new data
+        // fetch new data
         List<HealthDataPoint> healthData =
             await health.getHealthDataFromTypes(startDate, endDate, types);
 
-        /// Save all the new data points
+        // save all the new data points
         _healthDataList.addAll(healthData);
       } catch (e) {
         print("Caught exception in getHealthDataFromTypes: $e");
       }
 
-      /// Filter out duplicates
+      // filter out duplicates
       _healthDataList = HealthFactory.removeDuplicates(_healthDataList);
 
-      /// Print the results
+      // print the results
       _healthDataList.forEach((x) {
         print("Data point: $x");
-        steps += x.value.round();
+        if (HealthDataType.STEPS == x.type) {
+          steps += x.value.round();
+        }
       });
 
       print("Steps: $steps");
 
-      /// Update the UI to display the results
+      // update the UI to display the results
       setState(() {
         _state =
             _healthDataList.isEmpty ? AppState.NO_DATA : AppState.DATA_READY;

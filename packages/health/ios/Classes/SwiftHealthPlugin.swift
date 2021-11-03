@@ -51,6 +51,8 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
     let SLEEP_IN_BED = "SLEEP_IN_BED"
     let SLEEP_ASLEEP = "SLEEP_ASLEEP"
     let SLEEP_AWAKE = "SLEEP_AWAKE"
+    let EXERCISE_TIME = "EXERCISE_TIME"
+    let WORKOUT = "WORKOUT"
 
 
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -187,11 +189,19 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                             dispatchGroup.leave()
                             return
                         }
+                        var sourcesId = ""
+                        var sourcesName = ""
+                        for source in statistics.sources ?? [] {
+                            sourcesId.append(","  + source.bundleIdentifier)
+                            sourcesName.append(","  + source.name)
+                        }
 
                         stepResults.append([
                             "value": count,
                             "date_from": Int(statistics.startDate.timeIntervalSince1970 * 1000),
                             "date_to": Int(statistics.endDate.timeIntervalSince1970 * 1000),
+                            "source_id": sourcesId,
+                            "source_name": sourcesName,
                         ])
                         dispatchGroup.leave()
                     }
@@ -211,33 +221,62 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             let query = HKSampleQuery(sampleType: dataType, predicate: predicate, limit: limit, sortDescriptors: [sortDescriptor]) {
                 x, samplesOrNil, error in
 
-                guard let samples = samplesOrNil as? [HKQuantitySample] else {
-                    guard let samplesCategory = samplesOrNil as? [HKCategorySample] else {
-                        result(FlutterError(code: "FlutterHealth", message: "Results are null", details: "\(error)"))
-                        return
-                    }
-                    print(samplesCategory)
-                    result(samplesCategory.map { sample -> NSDictionary in
+                if let samples = samplesOrNil as? [HKQuantitySample] {
+                    result(samples.map { sample -> NSDictionary in
+                        let unit = self.unitLookUp(key: dataTypeKey)
+
                         return [
                             "uuid": "\(sample.uuid)",
-                            "value": sample.value,
+                            "value": sample.quantity.doubleValue(for: unit),
                             "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
                             "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
+                            "source_id": sample.sourceRevision.source.bundleIdentifier,
+                            "source_name": sample.sourceRevision.source.name
                         ]
                     })
                     return
+                } else {
+                    if var samplesCategory = samplesOrNil as? [HKCategorySample] {
+                        if (dataTypeKey == self.SLEEP_IN_BED) {
+                            samplesCategory = samplesCategory.filter { $0.value == 0 }
+                        }
+                        if (dataTypeKey == self.SLEEP_AWAKE) {
+                            samplesCategory = samplesCategory.filter { $0.value == 2 }
+                        }
+                        if (dataTypeKey == self.SLEEP_ASLEEP) {
+                            samplesCategory = samplesCategory.filter { $0.value == 1 }
+                        }
+                        print(samplesCategory)
+                        result(samplesCategory.map { sample -> NSDictionary in
+                            return [
+                                "uuid": "\(sample.uuid)",
+                                "value": sample.value,
+                                "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
+                                "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
+                                "source_id": sample.sourceRevision.source.bundleIdentifier,
+                                "source_name": sample.sourceRevision.source.name
+                            ]
+                        })
+                        return
+                    } else {
+                        if let samplesWorkout = samplesOrNil as? [HKWorkout] {
+                            result(samplesWorkout.map { sample -> NSDictionary in
+                                return [
+                                    "uuid": "\(sample.uuid)",
+                                    "value": Int(sample.duration),
+                                    "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
+                                    "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
+                                    "source_id": sample.sourceRevision.source.bundleIdentifier,
+                                    "source_name": sample.sourceRevision.source.name
+                                ]
+                            })
+                            return
+                        } else {
+                            result(FlutterError(code: "FlutterHealth", message: "Results are null", details: "\(error)"))
+                            return
+                        }
+                    }
                 }
-                result(samples.map { sample -> NSDictionary in
-                    let unit = self.unitLookUp(key: dataTypeKey)
-
-                    return [
-                        "uuid": "\(sample.uuid)",
-                        "value": sample.quantity.doubleValue(for: unit),
-                        "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
-                        "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
-                    ]
-                })
-                return
             }
             HKHealthStore().execute(query)
         }
@@ -294,9 +333,11 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         unitDict[FLIGHTS_CLIMBED] = HKUnit.count()
         unitDict[WATER] = HKUnit.liter()
         unitDict[MINDFULNESS] = HKUnit.init(from: "")
-        unitDict[SLEEP_IN_BED] = HKUnit.init(from: "")
-        unitDict[SLEEP_ASLEEP] = HKUnit.init(from: "")
-        unitDict[SLEEP_AWAKE] = HKUnit.init(from: "")
+        unitDict[SLEEP_IN_BED] = HKUnit.minute()
+        unitDict[SLEEP_ASLEEP] = HKUnit.minute()
+        unitDict[SLEEP_AWAKE] = HKUnit.minute()
+        unitDict[EXERCISE_TIME] =  HKUnit.minute()
+        unitDict[WORKOUT] = HKUnit.init(from: "")
 
         // Set up iOS 11 specific types (ordinary health data types)
         if #available(iOS 11.0, *) {
@@ -325,6 +366,8 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             dataTypesDict[SLEEP_IN_BED] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
             dataTypesDict[SLEEP_ASLEEP] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
             dataTypesDict[SLEEP_AWAKE] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
+            dataTypesDict[EXERCISE_TIME] = HKSampleType.quantityType(forIdentifier: .appleExerciseTime)!
+            dataTypesDict[WORKOUT] = HKSampleType.workoutType()
 
             healthDataTypes = Array(dataTypesDict.values)
         }

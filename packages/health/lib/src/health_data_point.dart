@@ -1,6 +1,7 @@
-part of '../health.dart';
+part of health;
 
-/// A [HealthDataPoint] object corresponds to a data point captures from GoogleFit or Apple HealthKit
+/// A [HealthDataPoint] object corresponds to a data point captures from
+/// GoogleFit or Apple HealthKit
 class HealthDataPoint {
   num _value;
   HealthDataType _type;
@@ -9,11 +10,21 @@ class HealthDataPoint {
   DateTime _dateTo;
   PlatformType _platform;
   String _deviceId;
+  String _sourceId;
+  String _sourceName;
 
-  HealthDataPoint(this._value, this._type, this._unit, this._dateFrom,
-      this._dateTo, this._platform, this._deviceId) {
-    /// Set the value to minutes rather than the category
-    /// returned by the native API
+  HealthDataPoint(
+      this._value,
+      this._type,
+      this._unit,
+      this._dateFrom,
+      this._dateTo,
+      this._platform,
+      this._deviceId,
+      this._sourceId,
+      this._sourceName) {
+    // set the value to minutes rather than the category
+    // returned by the native API
     if (type == HealthDataType.MINDFULNESS ||
         type == HealthDataType.SLEEP_IN_BED ||
         type == HealthDataType.SLEEP_ASLEEP ||
@@ -27,17 +38,33 @@ class HealthDataPoint {
     return ms / (1000 * 60);
   }
 
+  /// Converts a json object to the [HealthDataPoint]
+  factory HealthDataPoint.fromJson(json) => HealthDataPoint(
+      json['value'],
+      HealthDataTypeJsonValue.keys.toList()[
+          HealthDataTypeJsonValue.values.toList().indexOf(json['data_type'])],
+      HealthDataUnitJsonValue.keys.toList()[
+          HealthDataUnitJsonValue.values.toList().indexOf(json['unit'])],
+      DateTime.parse(json['date_from']),
+      DateTime.parse(json['date_to']),
+      PlatformTypeJsonValue.keys.toList()[
+          PlatformTypeJsonValue.values.toList().indexOf(json['platform_type'])],
+      json['platform_type'],
+      json['source_id'],
+      json['source_name']);
+
   /// Converts the [HealthDataPoint] to a json object
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['value'] = this.value;
-    data['unit'] = this.unit;
-    data['date_from'] = this.dateFrom;
-    data['date_to'] = this.dateTo;
-    data['data_type'] = this.type;
-    data['platform_type'] = this.platform;
-    return data;
-  }
+  Map<String, dynamic> toJson() => {
+        'value': value,
+        'data_type': HealthDataTypeJsonValue[type],
+        'unit': HealthDataUnitJsonValue[unit],
+        'date_from': DateFormat('yyyy-MM-dd HH:mm:ss').format(dateFrom),
+        'date_to': DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTo),
+        'platform_type': PlatformTypeJsonValue[platform],
+        'device_id': deviceId,
+        'source_id': sourceId,
+        'source_name': sourceName
+      };
 
   /// Converts the [HealthDataPoint] to a string
   String toString() => '${this.runtimeType} - '
@@ -45,8 +72,10 @@ class HealthDataPoint {
       'unit: $unit, '
       'dateFrom: $dateFrom, '
       'dateTo: $dateTo, '
-      'dataType: $type,'
-      'platform: $platform';
+      'dataType: $type, '
+      'platform: $platform, '
+      'sourceId: $sourceId, '
+      'sourceName: $sourceName.';
 
   /// Get the quantity value of the data point
   num get value => _value;
@@ -84,18 +113,28 @@ class HealthDataPoint {
   String get deviceId => _deviceId;
   set deviceId(value) => _deviceId = value;
 
+  /// Get the id of the source from which
+  /// the data point was extracted
+  String get sourceId => _sourceId;
+
+  /// Get the name of the source from which
+  /// the data point was extracted
+  String get sourceName => _sourceName;
+
   /// An equals (==) operator for comparing two data points
   /// This makes it possible to remove duplicate data points.
   @override
   bool operator ==(Object o) {
     return o is HealthDataPoint &&
-        value == o.value &&
-        unit == o.unit &&
-        dateFrom == o.dateFrom &&
-        dateTo == o.dateTo &&
-        type == o.type &&
-        platform == o.platform &&
-        deviceId == o.deviceId;
+        this.value == o.value &&
+        this.unit == o.unit &&
+        this.dateFrom == o.dateFrom &&
+        this.dateTo == o.dateTo &&
+        this.type == o.type &&
+        this.platform == o.platform &&
+        this.deviceId == o.deviceId &&
+        this.sourceId == o.sourceId &&
+        this.sourceName == o.sourceName;
   }
 
   /// Override required due to overriding the '==' operator

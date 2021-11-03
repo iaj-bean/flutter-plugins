@@ -11,8 +11,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   String _luxString = 'Unknown';
-  Light _light;
-  StreamSubscription _subscription;
+  late Light _light;
+  late StreamSubscription _subscription;
 
   void onData(int luxValue) async {
     print("Lux value: $luxValue");
@@ -29,8 +29,7 @@ class _MyAppState extends State<MyApp> {
     _light = new Light();
     try {
       _subscription = _light.lightSensorStream.listen(onData);
-    }
-    on LightException catch (exception) {
+    } on LightException catch (exception) {
       print(exception);
     }
   }
@@ -51,10 +50,10 @@ class _MyAppState extends State<MyApp> {
     return new MaterialApp(
       home: new Scaffold(
         appBar: new AppBar(
-          title: const Text('Plugin example app'),
+          title: const Text('Light Example App'),
         ),
         body: new Center(
-          child: new Text('Running on: $_luxString\n'),
+          child: new Text('Lux value: $_luxString\n'),
         ),
       ),
     );
